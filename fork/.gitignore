@@ -1,0 +1,38 @@
+# IDEs and Editors
+.idea/
+.vscode/
+*.iml
+*.iws
+
+# Python
+**/venv/
+**/.venv/
+**/__pycache__/
+*.py[cod]
+*$py.class
+**/.ipynb_checkpoints/
+.env
+
+# Model Artifacts and Data
+models/*.h5
+models/*.pth
+models/*.bin
+models/*.pkl
+data/
+utils/test_911.py
+results.csv
+
+# Gradle and Build
+.gradle/
+/build/
+/app/build/
+/local.properties
+/captures
+.externalNativeBuild
+.cxx
+
+# System
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
