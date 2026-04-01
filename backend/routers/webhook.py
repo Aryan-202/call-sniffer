@@ -1,10 +1,15 @@
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy.orm import Session
-from database.database import get_db
-from models.models import WebhookLog
 from schemas.schemas import WebhookResponse
 from utils.security import verify_webhook_secret
 import logging
+import httpx
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# THE TEAMMATE'S URL FROM YOUR REQUEST
+TEST_NGROK_FORWARD_URL = "https://vitalistically-recherch-charley.ngrok-free.dev/webhook-test/call-leads"
 
 router = APIRouter(
     tags=["webhooks"]
@@ -15,37 +20,40 @@ logger = logging.getLogger("uvicorn.error")
 @router.post("/webhook-test/call-leads", response_model=WebhookResponse)
 async def handle_test_webhook(
     request: Request,
-    db: Session = Depends(get_db),
     secret: str = Depends(verify_webhook_secret)
 ):
+    # 1. READ INCOMING JSON DATA 
     payload = await request.json()
-    logger.info(f"Received TEST Webhook payload: {payload}")
+    logger.info(f"🔔 Received Incoming Webhook for FORWARDING: {payload}")
     
-    db_log = WebhookLog(
-        payload=payload,
-        type="test"
+    # 2. IMMEDIATELY FORWARD TO THE EXTERNAL TEST URL
+    forward_status = "unattempted"
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                TEST_NGROK_FORWARD_URL, 
+                json=payload,
+                headers={"X-Webhook-Secret": secret} # Use the same secret for forwarding
+            )
+            forward_status = f"success_{response.status_code}"
+            logger.info(f"🚀 Forwarded payload to Teammate URL. Status: {response.status_code}")
+    except Exception as e:
+        forward_status = "failed"
+        logger.error(f"❌ Failed to forward payload: {str(e)}")
+    
+    return WebhookResponse(
+        status="received", 
+        message="Payload processed professionally", 
+        forward_status=forward_status
     )
-    db.add(db_log)
-    db.commit()
-    db.refresh(db_log)
-    
-    return WebhookResponse(status="success", message="Test webhook recorded", id=db_log.id)
 
 @router.post("/webhook/call-leads", response_model=WebhookResponse)
 async def handle_prod_webhook(
     request: Request,
-    db: Session = Depends(get_db),
     secret: str = Depends(verify_webhook_secret)
 ):
+    # For production, we just log and return (you can add production forwarding here later)
     payload = await request.json()
-    logger.info(f"Received PROD Webhook payload: {payload}")
+    logger.info(f"🔔 Received PROD Webhook payload: {payload}")
     
-    db_log = WebhookLog(
-        payload=payload,
-        type="prod"
-    )
-    db.add(db_log)
-    db.commit()
-    db.refresh(db_log)
-    
-    return WebhookResponse(status="success", message="Prod webhook recorded", id=db_log.id)
+    return WebhookResponse(status="success", message="Production webhook logged in terminal")
