@@ -1,4 +1,22 @@
+__pycache__/
+
 node_modules
+
+.vscode
+.venv
+# IDEs and Editors
+.idea/
+.vscode/
+*.iml
+*.iws
+
+# Python
+**/venv/
+**/.venv/
+**/__pycache__/
+*.py[cod]
+*$py.class
+**/.ipynb_checkpoints/
 .env
 .env.local
 .env.example
