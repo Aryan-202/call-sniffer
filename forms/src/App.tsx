@@ -148,6 +148,8 @@ export default function App() {
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorStatus, setErrorStatus] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -157,18 +159,41 @@ export default function App() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorStatus(null);
     const validationErrors = validate(formData);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
     }
 
-    console.log('📬 Form Submitted:', formData);
-    setSubmitted(true);
-    setFormData(INITIAL_FORM);
-    setErrors({});
+    setLoading(true);
+
+    try {
+      const response = await fetch('http://localhost:8000/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to submit form.');
+      }
+
+      console.log('📬 Form Submitted & Sent to n8n successfully');
+      setSubmitted(true);
+      setFormData(INITIAL_FORM);
+      setErrors({});
+    } catch (err: any) {
+      console.error('❌ Error submitting form:', err);
+      setErrorStatus(err.message || 'Error sending message. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -206,6 +231,14 @@ export default function App() {
 
               {/* Success Banner */}
               {submitted && <SuccessBanner onDismiss={() => setSubmitted(false)} />}
+              
+              {/* Error Banner */}
+              {errorStatus && (
+                <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-3">
+                  <span className="text-xl">⚠️</span>
+                  <p>{errorStatus}</p>
+                </div>
+              )}
 
               <InputField
                 id="name"
@@ -261,10 +294,16 @@ export default function App() {
                 <button
                   id="submit-btn"
                   type="submit"
+                  disabled={loading}
                   className="w-full bg-vit-red hover:bg-[#6e1515] active:scale-[0.98] text-white font-bold py-3.5 rounded-lg text-lg tracking-wide
-                    transition-all duration-200 shadow-md shadow-vit-red/20 focus:outline-none focus:ring-4 focus:ring-vit-red/30"
+                    transition-all duration-200 shadow-md shadow-vit-red/20 focus:outline-none focus:ring-4 focus:ring-vit-red/30 disabled:opacity-75 disabled:cursor-not-allowed"
                 >
-                  Submit Message
+                  {loading ? (
+                    <div className="flex items-center justify-center gap-2">
+                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                       Sending...
+                    </div>
+                  ) : "Submit Message"}
                 </button>
               </div>
             </form>
