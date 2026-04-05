@@ -26,3 +26,6 @@ __pycache__
 .venv
 
 .vscode
+
+server/.env
+forms/.env

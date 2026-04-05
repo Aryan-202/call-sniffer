@@ -148,6 +148,8 @@ export default function App() {
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -157,7 +159,7 @@ export default function App() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const validationErrors = validate(formData);
     if (Object.keys(validationErrors).length > 0) {
@@ -165,10 +167,33 @@ export default function App() {
       return;
     }
 
-    console.log('📬 Form Submitted:', formData);
-    setSubmitted(true);
-    setFormData(INITIAL_FORM);
-    setErrors({});
+    setLoading(true);
+    setSubmitError(null);
+    setSubmitted(false);
+
+    try {
+      const response = await fetch('http://localhost:8000/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to submit form. Please try again.');
+      }
+
+      setSubmitted(true);
+      setFormData(INITIAL_FORM);
+      setErrors({});
+    } catch (err: any) {
+      console.error('❌ Submission Error:', err);
+      setSubmitError(err.message || 'An unexpected error occurred.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -256,15 +281,29 @@ export default function App() {
                 onChange={handleChange}
               />
 
+              {/* Error Message */}
+              {submitError && (
+                <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-lg text-sm font-medium">
+                  <p className="font-bold">Error</p>
+                  <p>{submitError}</p>
+                </div>
+              )}
+
               {/* Submit Button */}
               <div className="pt-2 mt-auto shrink-0 pb-2">
                 <button
                   id="submit-btn"
                   type="submit"
-                  className="w-full bg-vit-red hover:bg-[#6e1515] active:scale-[0.98] text-white font-bold py-3.5 rounded-lg text-lg tracking-wide
-                    transition-all duration-200 shadow-md shadow-vit-red/20 focus:outline-none focus:ring-4 focus:ring-vit-red/30"
+                  disabled={loading}
+                  className={`w-full bg-vit-red hover:bg-[#6e1515] active:scale-[0.98] text-white font-bold py-3.5 rounded-lg text-lg tracking-wide
+                    transition-all duration-200 shadow-md shadow-vit-red/20 focus:outline-none focus:ring-4 focus:ring-vit-red/30 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
-                  Submit Message
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                      Sending...
+                    </span>
+                  ) : 'Submit Message'}
                 </button>
               </div>
             </form>
